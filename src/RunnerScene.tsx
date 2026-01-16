@@ -10,7 +10,8 @@ import {
 } from "./game/runnerTypes";
 import { SEPARATORS } from "./game/runnerTypes";
 import { ROAD_WIDTH } from "./game/runnerTypes";
-
+import { Suspense } from "react";
+import { BusModel } from "./game/BusModel";
 
 const OBSTACLE_COUNT = 8;
 const PLAYER_Z = 0.3;
@@ -94,7 +95,10 @@ function Road({
         <meshStandardMaterial color="#d6c7a1" />
       </mesh>
 
-      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[-borderOffset, 0.001, 0]}>
+      <mesh
+        rotation={[-Math.PI / 2, 0, 0]}
+        position={[-borderOffset, 0.001, 0]}
+      >
         <planeGeometry args={[borderW, length]} />
         <meshStandardMaterial color="#ffffff" />
       </mesh>
@@ -137,23 +141,23 @@ export function RunnerScene(props: {
 
   const obstaclesRef = useRef<Obstacle[]>([]);
 
-  const playerMesh = useRef<THREE.Mesh>(null!);
+  const playerMesh = useRef<THREE.Group>(null!);
   const instanced = useRef<THREE.InstancedMesh>(null!);
 
   const obstacleGeom = useMemo(() => new THREE.BoxGeometry(0.7, 0.9, 0.7), []);
-const obstacleMat = useMemo(
-  () =>
-    new THREE.MeshStandardMaterial({
-      color: "#ff3b30",
-      emissive: "#ff3b30",
-      emissiveIntensity: 0.35,
-      roughness: 0.4,
-      metalness: 0.0,
-    }),
-  []
-);
+  const obstacleMat = useMemo(
+    () =>
+      new THREE.MeshStandardMaterial({
+        color: "#ff3b30",
+        emissive: "#ff3b30",
+        emissiveIntensity: 0.35,
+        roughness: 0.4,
+        metalness: 0.0,
+      }),
+    []
+  );
 
-  const playerMat = useMemo(() => new THREE.MeshStandardMaterial(), []);
+  // const playerMat = useMemo(() => new THREE.MeshStandardMaterial(), []);
 
   useEffect(() => {
     const arr: Obstacle[] = [];
@@ -166,7 +170,6 @@ const obstacleMat = useMemo(
   }, []);
 
   function resetGame() {
-
     scoreRef.current = 0;
     props.onScore?.(0);
     aliveRef.current = true;
@@ -383,9 +386,13 @@ const obstacleMat = useMemo(
         </mesh>
       ))}
 
-      <mesh ref={playerMesh} material={playerMat} position={[0, 0.5, PLAYER_Z]}>
-        <boxGeometry args={[0.8, 1.5, 3]} />
-      </mesh>
+      <group ref={playerMesh} position={[0, 0.5, PLAYER_Z]}>
+        <Suspense fallback={null}>
+          <group scale={0.15} rotation={[0, Math.PI, 0]}>
+            <BusModel />
+          </group>
+        </Suspense>
+      </group>
 
       <instancedMesh
         ref={instanced}
