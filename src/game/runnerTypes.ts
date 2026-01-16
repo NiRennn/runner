@@ -32,4 +32,4 @@ export const SEPARATORS = [
   LANE_WIDTH / 2,
 ] as const
 
-export const ROAD_WIDTH = LANE_COUNT * LANE_WIDTH as const
+export const ROAD_WIDTH = LANE_COUNT * LANE_WIDTH
