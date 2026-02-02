@@ -1,5 +1,5 @@
 import * as THREE from "three";
-import { useEffect, useMemo, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useThree } from "@react-three/fiber";
 import { useFixedStep } from "./game/useFixedStep";
 import {
@@ -12,6 +12,7 @@ import { SEPARATORS } from "./game/runnerTypes";
 import { ROAD_WIDTH } from "./game/runnerTypes";
 import { Suspense } from "react";
 import { BusModel } from "./game/BusModel";
+import { CarModel } from "./game/CarModel";
 
 const OBSTACLE_COUNT = 8;
 const PLAYER_Z = 0.3;
@@ -19,6 +20,7 @@ const CLEAR_AT_START = 5;
 const MIN_GAP = 5.5;
 const MAX_GAP = 6;
 const START_Z = -(OBSTACLE_COUNT * MAX_GAP) - CLEAR_AT_START;
+const MODEL_COUNT = 1;
 
 const SPEED_START = 6.5;
 const SPEED_ACCEL = 0.06;
@@ -46,7 +48,7 @@ function aabbHit(
   bz: number,
   bhx: number,
   bhy: number,
-  bhz: number
+  bhz: number,
 ) {
   return (
     Math.abs(ax - bx) <= ahx + bhx &&
@@ -67,7 +69,7 @@ function Road({
   const { camera, viewport } = useThree();
   const v = viewport.getCurrentViewport(
     camera,
-    new THREE.Vector3(0, 0, zForWidth)
+    new THREE.Vector3(0, 0, zForWidth),
   );
 
   const totalWidth = v.width * 0.98;
@@ -123,6 +125,13 @@ export function RunnerScene(props: {
   const timeRef = useRef(0);
   const speedRef = useRef(SPEED_START);
 
+  const [obKinds, setObKinds] = useState<number[]>(() =>
+    Array.from({ length: OBSTACLE_COUNT }, () =>
+      Math.floor(Math.random() * MODEL_COUNT),
+    ),
+  );
+  const obstacleGroups = useRef<(THREE.Group | null)[]>([]);
+
   const inputRef = useRef({
     left: false,
     right: false,
@@ -142,20 +151,20 @@ export function RunnerScene(props: {
   const obstaclesRef = useRef<Obstacle[]>([]);
 
   const playerMesh = useRef<THREE.Group>(null!);
-  const instanced = useRef<THREE.InstancedMesh>(null!);
+  // const instanced = useRef<THREE.InstancedMesh>(null!);
 
-  const obstacleGeom = useMemo(() => new THREE.BoxGeometry(0.7, 0.9, 0.7), []);
-  const obstacleMat = useMemo(
-    () =>
-      new THREE.MeshStandardMaterial({
-        color: "#ff3b30",
-        emissive: "#ff3b30",
-        emissiveIntensity: 0.35,
-        roughness: 0.4,
-        metalness: 0.0,
-      }),
-    []
-  );
+  // const obstacleGeom = useMemo(() => new THREE.BoxGeometry(0.7, 0.9, 0.7), []);
+  // const obstacleMat = useMemo(
+  //   () =>
+  //     new THREE.MeshStandardMaterial({
+  //       color: "#ff3b30",
+  //       emissive: "#ff3b30",
+  //       emissiveIntensity: 0.35,
+  //       roughness: 0.4,
+  //       metalness: 0.0,
+  //     }),
+  //   [],
+  // );
 
   // const playerMat = useMemo(() => new THREE.MeshStandardMaterial(), []);
 
@@ -191,6 +200,11 @@ export function RunnerScene(props: {
       ob.scored = false;
       z += rand(MIN_GAP, MAX_GAP);
     }
+    setObKinds(
+      Array.from({ length: OBSTACLE_COUNT }, () =>
+        Math.floor(Math.random() * MODEL_COUNT),
+      ),
+    );
   }
 
   useEffect(() => {
@@ -296,7 +310,8 @@ export function RunnerScene(props: {
     let minZ = Infinity;
     for (const ob of obs) minZ = Math.min(minZ, ob.z);
 
-    for (const ob of obs) {
+    for (let i = 0; i < obs.length; i++) {
+      const ob = obs[i];
       ob.z += speed * dt;
 
       if (!ob.scored && ob.z > PLAYER_Z) {
@@ -310,6 +325,13 @@ export function RunnerScene(props: {
         ob.lane = randLane();
         ob.scored = false;
         minZ = ob.z;
+
+        const newKind = Math.floor(Math.random() * MODEL_COUNT);
+        setObKinds((prev) => {
+          const next = prev.slice();
+          next[i] = newKind;
+          return next;
+        });
       }
     }
 
@@ -332,7 +354,7 @@ export function RunnerScene(props: {
         ob.z,
         obHalf.x,
         obHalf.y,
-        obHalf.z
+        obHalf.z,
       );
       if (hit) {
         aliveRef.current = false;
@@ -343,7 +365,7 @@ export function RunnerScene(props: {
   });
 
   useEffect(() => {
-    const dummy = new THREE.Object3D();
+    let raf = 0;
 
     const updateVisuals = () => {
       const p = playerRef.current;
@@ -351,25 +373,23 @@ export function RunnerScene(props: {
         playerMesh.current.position.set(p.x, p.y, PLAYER_Z);
       }
 
-      const mesh = instanced.current;
-      if (mesh) {
-        const obs = obstaclesRef.current;
-        for (let i = 0; i < obs.length; i++) {
-          const ob = obs[i];
-          dummy.position.set(LANES[ob.lane], 0.5, ob.z);
-          dummy.rotation.set(0, 0, 0);
-          const s = 1 + (i % 3) * 0.15;
-          dummy.scale.set(s, 1, s);
-          dummy.updateMatrix();
-          mesh.setMatrixAt(i, dummy.matrix);
-        }
-        mesh.instanceMatrix.needsUpdate = true;
+      const obs = obstaclesRef.current;
+      for (let i = 0; i < obs.length; i++) {
+        const g = obstacleGroups.current[i];
+        if (!g) continue;
+
+        const ob = obs[i];
+        g.position.set(LANES[ob.lane], 0.5, ob.z);
+
+        // const s = 1 + (i % 3) * 0.15;
+        g.scale.set(1.5, 1.5, -1.5);
       }
 
-      requestAnimationFrame(updateVisuals);
+      raf = requestAnimationFrame(updateVisuals);
     };
 
     updateVisuals();
+    return () => cancelAnimationFrame(raf);
   }, []);
 
   return (
@@ -388,17 +408,28 @@ export function RunnerScene(props: {
 
       <group ref={playerMesh} position={[0, 0.5, PLAYER_Z]}>
         <Suspense fallback={null}>
-          <group scale={0.15} rotation={[0, Math.PI, 0]}>
+          <group scale={0.11} rotation={[0, Math.PI, 0]}>
             <BusModel />
           </group>
         </Suspense>
       </group>
 
-      <instancedMesh
-        ref={instanced}
-        args={[obstacleGeom, obstacleMat, OBSTACLE_COUNT]}
-        frustumCulled={false}
-      />
+      {Array.from({ length: OBSTACLE_COUNT }).map((_, i) => (
+        <group
+          key={i}
+          ref={(el) => {
+            obstacleGroups.current[i] = el;
+          }}
+          position={[0, 0.5, 0]} // стартовая позиция, потом перезапишется в updateVisuals
+        >
+          <Suspense fallback={null}>
+            {/* подбери scale под свои модели */}
+            <group scale={0.18} rotation={[0, Math.PI, 0]}>
+              <CarModel kind={obKinds[i]} />
+            </group>
+          </Suspense>
+        </group>
+      ))}
     </group>
   );
 }
