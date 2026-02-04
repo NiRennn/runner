@@ -11,7 +11,8 @@ import {
 import { SEPARATORS } from "./game/runnerTypes";
 import { ROAD_WIDTH } from "./game/runnerTypes";
 import { Suspense } from "react";
-import { BusModel } from "./game/BusModel";
+// import { BusModel } from "./game/BusModel";
+import { RaccoonModel } from "./game/RaccoonModel";
 import { CarModel } from "./game/CarModel";
 
 const OBSTACLE_COUNT = 8;
@@ -407,9 +408,16 @@ export function RunnerScene(props: {
       ))}
 
       <group ref={playerMesh} position={[0, 0.5, PLAYER_Z]}>
-        <Suspense fallback={null}>
+        {/* <Suspense fallback={null}>
           <group scale={0.11} rotation={[0, Math.PI, 0]}>
             <BusModel />
+          </group>
+        </Suspense> */}
+        chi
+        <Suspense fallback={null}>
+          {/* scale подбери под свою модель */}
+          <group scale={0.8} rotation={[0, Math.PI, 0]}>
+            <RaccoonModel  />
           </group>
         </Suspense>
       </group>

@@ -6,3 +6,5 @@ export function BusModel() {
 }
 
 useGLTF.preload("/models/bus.glb");
+
+
